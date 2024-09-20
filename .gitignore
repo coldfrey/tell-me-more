@@ -1,0 +1,18 @@
+# Binaries for programs and plugins
+*.exe
+*.dll
+*.so
+*.dylib
+*.bin
+
+# Test binary, coverage reports, and result logs
+*.test
+*.out
+*.log
+
+# Directory for Go modules
+vendor/
+
+# Go workspaces
+go.work
+go.work.sum

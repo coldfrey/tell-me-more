@@ -1,0 +1,18 @@
+# 📸 AI Screenshot Renamer - Tell Me More
+
+Welcome to **Tell Me More** – a handy and magical CLI tool that scans your directory, looks at the file names, analyzes any screenshots, and uses AI to suggest cool and meaningful new names for them! Say goodbye to messy file names like `Screenshot_123.png` and hello to something like `Amazing_Sunset_2024.png`! 🚀
+
+## 🌟 Features
+- **Walk through directories**: Point it to a folder, and it will analyze all your files.
+- **AI-powered renaming**: Any screenshots in the directory? Our AI buddy will scan them and suggest better, more descriptive names.
+- **Simple and fast**: Run it, get suggestions, and rename in seconds.
+- **Works out of the box**: Just set up your API keys and you're good to go!
+
+## 🚀 Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/your-username/ai-screenshot-renamer.git
+   cd ai-screenshot-renamer
+
+TBC
