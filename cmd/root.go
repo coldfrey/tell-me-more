@@ -10,11 +10,11 @@ import (
 	"regexp"
 	"strings"
 
-	// "cloud.google.com/go/vision/v2"
-	vision "cloud.google.com/go/vision/apiv1"
-	visionpb "cloud.google.com/go/vision/v2/apiv1/visionpb"
+
+	"github.com/google/generative-ai-go/genai"
 	openai "github.com/sashabaranov/go-openai"
 	"github.com/spf13/cobra"
+	"google.golang.org/api/option"
 )
 
 // func main() {
@@ -49,10 +49,11 @@ func searchDirectory(dir string) {
 
         if !info.IsDir() && isTargetFile(info.Name()) {
             fmt.Printf("Found target file: %s\n", path)
-            labels, err := getLabelsFromImage(path)
+            // labels, err := getLabelsFromImage(path)
+						labels, err := getImageSentiment(path)
             if err != nil {
                 log.Printf("Error getting labels from image: %v", err)
-                labels = []string{}
+                labels = strings.Split(info.Name(), ".")[0]
             }
 
             description, err := getDescriptionFromChatGPT(labels)
@@ -80,118 +81,57 @@ func searchDirectory(dir string) {
 func isTargetFile(filename string) bool {
     filename = strings.ToLower(filename)
     screenshotPattern := regexp.MustCompile(`screenshot`)
-    dallePattern := regexp.MustCompile(`dall[eé]?`)
+    dallePattern := regexp.MustCompile(`dalle?`)
     return screenshotPattern.MatchString(filename) || dallePattern.MatchString(filename)
 }
 
-func getLabelsFromImage(imagePath string) ([]string, error) {
-    ctx := context.Background()
+func getImageSentiment(imagePath string) (string, error) {
+	ctx := context.Background()
+	// Access your API key as an environment variable
+	client, err := genai.NewClient(ctx, option.WithAPIKey(os.Getenv("GEMINI_API_KEY")))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Close()
 
-    client, err := vision.NewImageAnnotatorClient(ctx)
-    if err != nil {
-        return nil, fmt.Errorf("failed to create vision client: %v", err)
-    }
-    defer client.Close()
+	file, err := client.UploadFileFromPath(ctx, filepath.Join(imagePath), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.DeleteFile(ctx, file.Name)
 
-    // Open the image file
-    file, err := os.Open(imagePath)
-    if err != nil {
-        return nil, fmt.Errorf("failed to open image file: %v", err)
-    }
-    defer file.Close()
+	gotFile, err := client.GetFile(ctx, file.Name)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("File received:", gotFile.Name)
 
-    // Create the image using the helper function
-    image, err := vision.NewImageFromReader(file)
-    if err != nil {
-        return nil, fmt.Errorf("failed to create image from file: %v", err)
-    }
+	model := client.GenerativeModel("gemini-1.5-flash")
+	resp, err := model.GenerateContent(ctx,
+		genai.FileData{URI: file.URI},
+		genai.Text("Can you tell me about this photo, describe it in as much detail as possible, include an overall impression about what the image may be about."))
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    // Create an AnnotateImageRequest with multiple features
-    req := &visionpb.AnnotateImageRequest{
-        Image: image,
-        Features: []*visionpb.Feature{
-            {Type: visionpb.Feature_LABEL_DETECTION},
-            {Type: visionpb.Feature_WEB_DETECTION},
-            {Type: visionpb.Feature_TEXT_DETECTION},
-            {Type: visionpb.Feature_OBJECT_LOCALIZATION},
-            {Type: visionpb.Feature_IMAGE_PROPERTIES},
-        },
-    }
+	var result string
+	for _, c := range resp.Candidates {
+			if c.Content != nil {
+					for _, part := range c.Content.Parts {
+							if text, ok := part.(genai.Text); ok {
+									result += string(text)
+							}
+					}
+			}
+	}
+	// fmt.Println("Result:", result)
+	return result, nil
 
-    // Send the request
-        // Send the request
-    reqs := []*visionpb.AnnotateImageRequest{req}
-    batchReq := &visionpb.BatchAnnotateImagesRequest{Requests: reqs}
-    resp, err := client.BatchAnnotateImages(ctx, batchReq)
-    if err != nil {
-        return nil, fmt.Errorf("failed to annotate image: %v", err)
-    }
 
-    // Check for errors in response
-    if len(resp.Responses) == 0 {
-        return nil, fmt.Errorf("no response from vision API")
-    }
-    res := resp.Responses[0]
-    if res.Error != nil {
-        return nil, fmt.Errorf("vision API error: %v", res.Error.Message)
-    }
-
-    labels := []string{}
-
-    // Process label annotations
-    for _, annotation := range res.LabelAnnotations {
-        labels = append(labels, annotation.Description)
-    }
-
-    // Process web detections
-    if res.WebDetection != nil {
-        web := res.WebDetection
-        for _, entity := range web.WebEntities {
-            if entity.Description != "" {
-                labels = append(labels, entity.Description)
-            }
-        }
-    }
-
-    // Process text annotations
-    if res.TextAnnotations != nil {
-        for _, text := range res.TextAnnotations {
-            labels = append(labels, text.Description)
-        }
-    }
-
-    // Process localized object annotations
-    if res.LocalizedObjectAnnotations != nil {
-        for _, obj := range res.LocalizedObjectAnnotations {
-            labels = append(labels, obj.Name)
-        }
-    }
-
-    // Remove duplicates
-    labels = removeDuplicates(labels)
-
-    // Log labels for debugging
-    // log.Printf("Labels for %s: %v", imagePath, labels)
-
-    return labels, nil
 }
 
 
-func removeDuplicates(elements []string) []string {
-    encountered := map[string]bool{}
-    result := []string{}
-
-    for _, v := range elements {
-        if !encountered[v] {
-            encountered[v] = true
-            result = append(result, v)
-        }
-    }
-
-    return result
-}
-
-func getDescriptionFromChatGPT(labels []string) (string, error) {
+func getDescriptionFromChatGPT(labels string) (string, error) {
     openaiAPIKey := os.Getenv("OPENAI_API_KEY")
     if openaiAPIKey == "" {
         return "", fmt.Errorf("OpenAI API key not set")
@@ -206,14 +146,16 @@ func getDescriptionFromChatGPT(labels []string) (string, error) {
 Given the following labels describing an image:
 %s
 
-Using these labels, write a short, descriptive, imaginative, and human-friendly filename for the image (without file extension). There will be a large reward for the best, most human file name:`, strings.Join(labels, ", "))
+Using these labels, write a short, descriptive, imaginative, and human-friendly filename for the image (without file extension). There will be a large reward for the best, most human file name:`, labels)
     } else {
         prompt = `You are a creative assistant that generates human-like filenames for images.
 
 An image is provided, but no labels or descriptions are available.
 
 Using your imagination, suggest a short, descriptive, and human-friendly filename for the image (without file extension). There will be a large reward for the best, most human file name. Don't forget to be a human the output name MUST be short. 
-For example a screenshot of the youtube website, will have lots of descriptive and various interesting points but a good name would be 'youtube_homepage':`
+For example a screenshot of the youtube website, will have lots of descriptive and various interesting points but a good name would be 'youtube_homepage'
+
+Make sure the name suggestion is under 40 characters, the fewer words the better:`
     }
 
     ctx := context.Background()

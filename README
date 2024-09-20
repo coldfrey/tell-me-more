@@ -13,6 +13,7 @@ Welcome to **Tell Me More** – a handy and magical CLI tool that scans your dir
 1. **Clone the repository**:
    ```bash
    git clone https://github.com/your-username/ai-screenshot-renamer.git
-   cd ai-screenshot-renamer
+   cd tell-me-more
+   ```
 
 TBC
