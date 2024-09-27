@@ -29,3 +29,4 @@ Welcome to **Tell Me More** – a handy and magical CLI tool that scans your dir
      export GEMINI_API_KEY=your_gemini_api_key
      ```
    
+
