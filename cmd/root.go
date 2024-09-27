@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strings"
 
-
 	"github.com/google/generative-ai-go/genai"
 	openai "github.com/sashabaranov/go-openai"
 	"github.com/spf13/cobra"
@@ -23,7 +22,7 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-    Use:   "screenshot-renamer",
+    Use:   "tell-me-more",
     Short: "A CLI tool to rename image files based on their content",
     Run: func(cmd *cobra.Command, args []string) {
         if len(args) < 1 {
@@ -141,12 +140,14 @@ func getDescriptionFromChatGPT(labels string) (string, error) {
 
     var prompt string
     if len(labels) > 0 {
-        prompt = fmt.Sprintf(`You are a creative assistant that generates human-like filenames for images based on their content.
+        prompt = fmt.Sprintf(`You are a creative assistant that generates human-like filenames for images.
 
-Given the following labels describing an image:
-%s
+An image is provided, but no labels or descriptions are available.
 
-Using these labels, write a short, descriptive, imaginative, and human-friendly filename for the image (without file extension). There will be a large reward for the best, most human file name:`, labels)
+Using your imagination, suggest a short, descriptive, and human-friendly filename for the image (without file extension). There will be a large reward for the best, most human file name. Don't forget to be a human the output name MUST be short. 
+For example a screenshot of the youtube website, will have lots of descriptive and various interesting points but a good name would be 'youtube_homepage'
+
+Make sure the name suggestion is under 40 characters, the fewer words the better:`, labels)
     } else {
         prompt = `You are a creative assistant that generates human-like filenames for images.
 

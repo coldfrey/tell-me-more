@@ -12,8 +12,20 @@ Welcome to **Tell Me More** – a handy and magical CLI tool that scans your dir
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-username/ai-screenshot-renamer.git
+   git clone https://github.com/coldfrey/tell-me-more.git
    cd tell-me-more
    ```
 
-TBC
+2. **Install dependencies**:
+   ```bash
+   go mod tidy
+   ```
+
+3. **Set up API keys**:
+   - Get your API keys from [OpenAI](https://platform.openai.com/docs/overview) and [Google Cloud Vision](https://aistudio.google.com/app/apikey).
+   - Create a `.env` file in the root directory and add your keys:
+     ```bash
+     export OPENAI_API_KEY=your_openai_api_key
+     export GEMINI_API_KEY=your_gemini_api_key
+     ```
+   
